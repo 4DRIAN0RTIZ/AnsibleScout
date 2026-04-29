@@ -1,0 +1,22 @@
+# Ansible Scout — user config
+# Copy to ~/.config/ascout/config.toml
+
+[ui]
+# Available: dracula, orange, nord, monokai
+theme = "dracula"
+
+[search]
+limit = 10
+results_display = 5
+
+[ai]
+# Enable or disable AI features completely
+enabled = true
+model = "gpt-4o-mini"
+max_tokens = 500
+# Add your OpenAI API key here, or set OPENAI_API_KEY environment variable
+api_key = "sk-..."
+
+[ansible]
+doc_timeout = 10
+modules_file = "/tmp/ansible_modules.json"

@@ -6,7 +6,7 @@ Textual-based terminal interface for module search and browsing.
 
 import subprocess
 import json
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
@@ -16,14 +16,20 @@ from rich.text import Text
 from rich.console import Group
 from rich.syntax import Syntax
 
-from ..services import ModuleLoader, SearchService
+from ..services import (
+    ModuleLoader,
+    SearchService,
+    AIService,
+    EmbeddingService,
+    SemanticSearchService,
+)
 from ..config import Config
 from .widgets import (
     SearchInput,
     ResultsList,
     DetailsPanel,
     FocusableScrollableContainer,
-    ModuleListItem
+    ModuleListItem,
 )
 from .screens import ThemePalette
 from .themes import get_all_themes, get_theme_names, get_syntax_theme
@@ -51,6 +57,7 @@ class AnsibleBotApp(App):
         Binding("d", "show_details", "Details", show=False),
         Binding("ctrl+u", "page_up", "Page Up", show=False),
         Binding("ctrl+d", "page_down", "Page Down", show=False),
+        Binding("ctrl+i", "ai_search", "AI Search", show=False),
         Binding("1", "select_item(1)", "1", show=False),
         Binding("2", "select_item(2)", "2", show=False),
         Binding("3", "select_item(3)", "3", show=False),
@@ -62,50 +69,66 @@ class AnsibleBotApp(App):
         Binding("9", "select_item(9)", "9", show=False),
     ]
 
-    def __init__(
-        self,
-        modules_file: str = None,
-        theme: str = "dracula"
-    ):
+    def __init__(self, modules_file: str = None, theme: str = "dracula"):
         super().__init__()
         self.title = "Ansible Scout"
         self.initial_theme = theme if theme in get_theme_names() else "dracula"
 
         self.loader = ModuleLoader(modules_file or Config.DEFAULT_MODULES_FILE)
         self.search_service = None
+        self.semantic_search_service: Optional[SemanticSearchService] = None
+        self.ai_service = AIService(
+            enabled=Config.AI_ENABLED and Config.validate_api_key()
+        )
+        self.embedding_service = EmbeddingService(
+            enabled=Config.AI_ENABLED and Config.validate_api_key()
+        )
 
         self.current_results: List[Tuple[str, str, float]] = []
+        self.current_query: str = ""
+        self.ai_recommendation: str = ""
         self.focus_index = 0
+        self.embeddings_loading = False
+        self.embeddings_ready = False
 
     def compose(self) -> ComposeResult:
         """Create application layout"""
         theme_status = f"Theme: {self.theme}"
+        ai_status = " | [cyan]Ctrl+I: AI[/cyan]" if Config.AI_ENABLED else ""
 
         yield Header(show_clock=True)
 
         with Container(id="main-container"):
             with Vertical(id="search-container"):
                 yield Static(
-                    f"[bold]Search Ansible Modules[/bold] | {theme_status} | Press [bold]?[/bold] for help",
-                    classes="status-text"
+                    f"[bold]Search Ansible Modules[/bold] | {theme_status}{ai_status} | Press [bold]?[/bold] for help",
+                    classes="status-text",
                 )
                 yield SearchInput(
                     placeholder="Type to search modules (e.g., 'copy files', 'install packages')...",
-                    id="search-input"
+                    id="search-input",
                 )
+                # AI panel only shown if AI is enabled
+                if Config.AI_ENABLED:
+                    with FocusableScrollableContainer(id="ai-recommendation-container"):
+                        yield Static(
+                            "[bold]AI Recommendations[/bold] [dim](Press Ctrl+I for AI suggestions)[/dim]",
+                            classes="status-text",
+                        )
+                        yield DetailsPanel(id="ai-recommendation-panel")
 
             with Horizontal(id="content-container"):
                 with Vertical(id="results-container"):
                     yield Static(
                         "[bold]Results[/bold] [dim](j/k to navigate, 1-9 to select)[/dim]",
-                        classes="status-text"
+                        classes="status-text",
                     )
                     yield ResultsList(id="results-list")
 
                 with FocusableScrollableContainer(id="details-container"):
                     yield Static(
                         "[bold]Details[/bold] [dim](Ctrl+d/u to scroll)[/dim]",
-                        classes="status-text"
+                        classes="status-text",
                     )
                     yield DetailsPanel(id="details-panel")
 
@@ -120,12 +143,106 @@ class AnsibleBotApp(App):
 
         modules = self.loader.load()
         self.search_service = SearchService(modules)
-        self.notify(
-            f"Loaded {self.loader.count()} modules",
-            severity="information"
-        )
+
+        # Show loading state immediately
+        if Config.AI_ENABLED and self.embedding_service.enabled:
+            self._update_ai_panel(
+                "[yellow]⏳ Loading AI embeddings...[/yellow]\n"
+                "[dim]You can start searching now. Ctrl+I will be ready shortly.[/dim]"
+            )
+            self.embeddings_loading = True
+
+            # Initialize embeddings in background (non-blocking)
+            self.run_worker(
+                self._initialize_embeddings_background(modules),
+                thread=True,  # Run in thread to not block UI
+            )
+
+        self.notify(f"Loaded {self.loader.count()} modules", severity="information")
         # Don't focus input automatically - it hides app bindings in Footer
         # User can press '/' or 'i' to focus search
+
+    async def _initialize_embeddings_background(self, modules: dict) -> None:
+        """Initialize embeddings cache for semantic search (runs in background)"""
+        try:
+            self.call_from_thread(
+                lambda: self._update_ai_panel(
+                    "[yellow]⏳ Generating embeddings (first run takes ~30s)...[/yellow]"
+                )
+            )
+
+            # Try to load cached embeddings first
+            if self.embedding_service.load_cached_embeddings(modules):
+                self.semantic_search_service = SemanticSearchService(
+                    modules, self.embedding_service
+                )
+                self.embeddings_ready = True
+                self.embeddings_loading = False
+                stats = self.embedding_service.get_stats()
+
+                self.call_from_thread(
+                    lambda: self._update_ai_panel(
+                        f"[green]✓ AI ready![/green] [dim]Press Ctrl+I for semantic search ({stats['cached_embeddings']} modules)[/dim]"
+                    )
+                )
+                self.call_from_thread(
+                    lambda: self.notify(
+                        f"Semantic search ready: {stats['cached_embeddings']} modules",
+                        severity="information",
+                    )
+                )
+            else:
+                # Generate new embeddings
+                self.call_from_thread(
+                    lambda: self._update_ai_panel(
+                        "[yellow]⏳ Generating embeddings (first run takes ~30s)...[/yellow]\n"
+                        "[dim]Processing all Ansible modules with OpenAI...[/dim]"
+                    )
+                )
+
+                if self.embedding_service.generate_embeddings(modules):
+                    self.semantic_search_service = SemanticSearchService(
+                        modules, self.embedding_service
+                    )
+                    self.embeddings_ready = True
+                    self.embeddings_loading = False
+
+                    self.call_from_thread(
+                        lambda: self._update_ai_panel(
+                            "[green]✓ AI ready![/green] [dim]Press Ctrl+I for semantic search[/dim]"
+                        )
+                    )
+                    self.call_from_thread(
+                        lambda: self.notify(
+                            "Semantic search initialized! Press Ctrl+I for AI recommendations",
+                            severity="information",
+                        )
+                    )
+                else:
+                    self.embeddings_loading = False
+                    self.call_from_thread(
+                        lambda: self._update_ai_panel(
+                            "[red]✗ AI unavailable[/red] [dim]Check api_key in config.toml[/dim]"
+                        )
+                    )
+                    self.call_from_thread(
+                        lambda: self.notify(
+                            "AI search unavailable. Check OPENAI_API_KEY",
+                            severity="warning",
+                        )
+                    )
+        except Exception as e:
+            self.embeddings_loading = False
+            self.call_from_thread(
+                lambda: self._update_ai_panel(
+                    f"[red]✗ AI error:[/red] [dim]{str(e)}[/dim]"
+                )
+            )
+            self.call_from_thread(
+                lambda: self.notify(
+                    f"Could not initialize embeddings: {e}", severity="warning"
+                )
+            )
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle search input changes"""
@@ -141,11 +258,15 @@ class AnsibleBotApp(App):
         if not self.search_service:
             return
 
+        self.current_query = query
         self.current_results = self.search_service.search(
-            query,
-            limit=Config.SEARCH_LIMIT * 2
+            query, limit=Config.SEARCH_LIMIT * 2
         )
         self._update_results_list()
+
+        # AI search is now triggered manually with Ctrl+I to save tokens
+        if Config.AI_ENABLED:
+            self._update_ai_panel("[dim]Press Ctrl+I for AI recommendations[/dim]")
 
     def _update_results_list(self) -> None:
         """Refresh results ListView with current results"""
@@ -156,13 +277,122 @@ class AnsibleBotApp(App):
             item = ModuleListItem(name, desc, score, idx)
             results_list.append(item)
 
+    async def _fetch_ai_recommendations(
+        self, query: str, results: List[Tuple[str, str, float]]
+    ) -> None:
+        """Fetch AI recommendations asynchronously"""
+        try:
+            recommendation = self.ai_service.get_recommendations(query, results)
+            self._update_ai_panel(recommendation)
+        except Exception as e:
+            self._update_ai_panel(f"[red]AI Error: {str(e)}[/red]")
+
+    def _update_ai_panel(self, content: str) -> None:
+        """Update AI recommendation panel"""
+        try:
+            ai_panel = self.query_one("#ai-recommendation-panel", DetailsPanel)
+            ai_panel.set_content(content)
+        except Exception:
+            pass
+
+    def action_ai_search(self) -> None:
+        """Trigger semantic AI search (Ctrl+I) - Uses embeddings for high-quality recommendations"""
+        if not Config.AI_ENABLED:
+            self.notify("AI features are disabled in config", severity="warning")
+            return
+
+        if not self.ai_service.is_enabled():
+            self.notify(
+                "AI not available. Set api_key in config.toml or OPENAI_API_KEY env var",
+                severity="error",
+            )
+            return
+
+        if self.embeddings_loading:
+            self.notify(
+                "⏳ Embeddings still loading... Please wait a moment and try again",
+                severity="warning",
+            )
+            return
+
+        if (
+            not self.semantic_search_service
+            or not self.semantic_search_service.is_ready()
+        ):
+            self.notify(
+                "❌ Semantic search not available. Check AI panel for status",
+                severity="error",
+            )
+            return
+
+        # Get query from search input
+        search_input = self.query_one("#search-input", SearchInput)
+        query = search_input.value.strip()
+
+        if not query:
+            self.notify(
+                "Type a search query first, then press Ctrl+I", severity="warning"
+            )
+            return
+
+        self.current_query = query
+        self._update_ai_panel("[dim]Searching with AI embeddings...[/dim]")
+        self.run_worker(
+            self._perform_semantic_search(query),
+            exclusive=True,
+        )
+
+    async def _perform_semantic_search(self, query: str) -> None:
+        """Perform semantic search and get AI recommendations"""
+        try:
+            # Step 1: Semantic search with embeddings (NOT fuzzy)
+            semantic_results = self.semantic_search_service.search(
+                query, limit=Config.SEARCH_LIMIT
+            )
+
+            if not semantic_results:
+                self._update_ai_panel("[red]No results from semantic search[/red]")
+                return
+
+            # Step 2: Update results list with semantic results
+            self.current_results = semantic_results
+            self._update_results_list()
+
+            # Step 3: Get AI recommendations based on semantic results
+            recommendation = self.ai_service.get_recommendations(
+                query, semantic_results
+            )
+            self._update_ai_panel(recommendation)
+
+            # Notify user about semantic search
+            self.notify(
+                f"Semantic search: {len(semantic_results)} results via embeddings",
+                severity="information",
+            )
+
+        except Exception as e:
+            self._update_ai_panel(f"[red]Semantic search error: {str(e)}[/red]")
+
     def _clear_results(self) -> None:
         """Clear search results and details"""
         self.current_results = []
+        self.current_query = ""
         results_list = self.query_one("#results-list", ResultsList)
         results_list.clear()
         details = self.query_one("#details-panel", DetailsPanel)
         details.set_content("[dim]No module selected[/dim]")
+        if Config.AI_ENABLED:
+            if self.embeddings_loading:
+                self._update_ai_panel(
+                    "[yellow]⏳ Loading AI embeddings...[/yellow]\n"
+                    "[dim]You can start searching now. Ctrl+I will be ready shortly.[/dim]"
+                )
+            elif self.embeddings_ready:
+                self._update_ai_panel(
+                    "[green]✓ AI ready![/green] [dim]Press Ctrl+I for semantic search[/dim]"
+                )
+            else:
+                self._update_ai_panel("[dim]Press Ctrl+I for AI recommendations[/dim]")
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Handle module selection from list"""
@@ -172,23 +402,18 @@ class AnsibleBotApp(App):
     def _show_module_details(self, module_name: str) -> None:
         """Load and display module details"""
         details_panel = self.query_one("#details-panel", DetailsPanel)
-        details_panel.set_content(
-            f"Loading details for {module_name}..."
-        )
+        details_panel.set_content(f"Loading details for {module_name}...")
 
-        self.run_worker(
-            self._fetch_module_details(module_name),
-            exclusive=True
-        )
+        self.run_worker(self._fetch_module_details(module_name), exclusive=True)
 
     async def _fetch_module_details(self, module_name: str) -> None:
         """Fetch module details asynchronously"""
         try:
             result = subprocess.run(
-                ['ansible-doc', '-j', module_name],
+                ["ansible-doc", "-j", module_name],
                 capture_output=True,
                 text=True,
-                timeout=Config.ANSIBLE_DOC_TIMEOUT
+                timeout=Config.ANSIBLE_DOC_TIMEOUT,
             )
 
             if result.returncode == 0:
@@ -216,60 +441,56 @@ class AnsibleBotApp(App):
 
         text_parts = [f"[bold]{module_name}[/bold]\n"]
 
-        if 'doc' in details:
-            doc = details['doc']
+        if "doc" in details:
+            doc = details["doc"]
 
-            if 'short_description' in doc:
+            if "short_description" in doc:
                 text_parts.append(f"{doc['short_description']}\n")
 
-            if 'description' in doc:
+            if "description" in doc:
                 text_parts.append("[bold]Description:[/bold]")
-                desc = doc['description']
+                desc = doc["description"]
                 if isinstance(desc, list):
                     text_parts.extend([f"  {line}" for line in desc])
                 else:
                     text_parts.append(f"  {desc}")
                 text_parts.append("")
 
-            if 'options' in doc and doc['options']:
+            if "options" in doc and doc["options"]:
                 text_parts.append("[bold]Parameters:[/bold]")
-                for param_name, param_info in list(doc['options'].items())[:8]:
+                for param_name, param_info in list(doc["options"].items())[:8]:
                     required = (
                         "[red](required)[/red]"
-                        if param_info.get('required', False)
+                        if param_info.get("required", False)
                         else "[dim](optional)[/dim]"
                     )
                     text_parts.append(f"  [bold]{param_name}[/bold] {required}")
 
-                    if 'description' in param_info:
-                        desc = param_info['description']
+                    if "description" in param_info:
+                        desc = param_info["description"]
                         if isinstance(desc, list):
-                            desc = ' '.join(desc)
+                            desc = " ".join(desc)
                         text_parts.append(f"    {desc[:150]}...")
                 text_parts.append("")
 
         renderables.append(Text.from_markup("\n".join(text_parts)))
 
-        if 'examples' in details:
-            examples = details['examples']
+        if "examples" in details:
+            examples = details["examples"]
             if examples:
-                renderables.append(
-                    Text.from_markup("\n[bold]Examples:[/bold]")
-                )
-                yaml_code = '\n'.join(examples.split('\n')[:20])
+                renderables.append(Text.from_markup("\n[bold]Examples:[/bold]"))
+                yaml_code = "\n".join(examples.split("\n")[:20])
                 syntax = Syntax(
                     yaml_code,
                     "yaml",
                     theme=syntax_theme,
                     line_numbers=False,
-                    word_wrap=True
+                    word_wrap=True,
                 )
                 renderables.append(syntax)
 
         renderables.append(
-            Text.from_markup(
-                f"\n[dim]Full docs: ansible-doc {module_name}[/dim]"
-            )
+            Text.from_markup(f"\n[dim]Full docs: ansible-doc {module_name}[/dim]")
         )
 
         return Group(*renderables)
@@ -320,16 +541,14 @@ class AnsibleBotApp(App):
     def action_page_up(self) -> None:
         """Scroll details panel up"""
         details_container = self.query_one(
-            "#details-container",
-            FocusableScrollableContainer
+            "#details-container", FocusableScrollableContainer
         )
         details_container.scroll_page_up()
 
     def action_page_down(self) -> None:
         """Scroll details panel down"""
         details_container = self.query_one(
-            "#details-container",
-            FocusableScrollableContainer
+            "#details-container", FocusableScrollableContainer
         )
         details_container.scroll_page_down()
 
@@ -338,8 +557,7 @@ class AnsibleBotApp(App):
         search_input = self.query_one("#search-input", SearchInput)
         results_list = self.query_one("#results-list", ResultsList)
         details_container = self.query_one(
-            "#details-container",
-            FocusableScrollableContainer
+            "#details-container", FocusableScrollableContainer
         )
 
         self.focus_index = (self.focus_index + 1) % 3
@@ -359,9 +577,7 @@ class AnsibleBotApp(App):
         if 0 <= idx < len(results_list.children):
             results_list.index = idx
             if isinstance(results_list.highlighted_child, ModuleListItem):
-                self._show_module_details(
-                    results_list.highlighted_child.module_name
-                )
+                self._show_module_details(results_list.highlighted_child.module_name)
 
     def watch_theme(self, new_theme: str) -> None:
         """Called when theme changes"""
@@ -380,19 +596,13 @@ class AnsibleBotApp(App):
 
     def action_open_theme_palette(self) -> None:
         """Open theme selection modal"""
-        self.push_screen(
-            ThemePalette(self.theme),
-            self._handle_theme_selection
-        )
+        self.push_screen(ThemePalette(self.theme), self._handle_theme_selection)
 
     def _handle_theme_selection(self, theme_name: str | None) -> None:
         """Handle theme selection from modal"""
         if theme_name and theme_name in get_theme_names():
             self.theme = theme_name
-            self.notify(
-                f"Theme changed to: {self.theme}",
-                severity="information"
-            )
+            self.notify(f"Theme changed to: {self.theme}", severity="information")
 
     def action_show_help(self) -> None:
         """Display help screen with keybindings"""
@@ -415,6 +625,10 @@ class AnsibleBotApp(App):
   1-9           Jump to result by number
   Enter or d    Show module details
   Tab           Cycle focus (search → results → details)
+
+[bold]AI Features (Semantic Search)[/bold]
+  Ctrl+i        Semantic AI search with embeddings
+                Finds modules by meaning, not just text
 
 [bold]Commands[/bold]
   Ctrl+p        Open command palette (themes, actions)

@@ -56,6 +56,25 @@ Footer > .footer--key {
     color: $foreground;
 }
 
+#ai-recommendation-container {
+    height: auto;
+    max-height: 6;
+    border: solid $border;
+    background: $surface;
+    padding: 0 1;
+    margin-top: 1;
+}
+
+#ai-recommendation-container:focus-within {
+    border: heavy $primary;
+}
+
+#ai-recommendation-panel {
+    background: $surface;
+    color: $foreground;
+    padding: 0 1;
+}
+
 #content-container {
     background: $background;
     height: 1fr;
