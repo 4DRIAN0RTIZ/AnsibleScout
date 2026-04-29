@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Ansible Scout - Documentation</title>
+	<meta name="description" content="Scout and discover Ansible modules instantly with fuzzy search recommendations">
+	<meta name="keywords" content="ansible, modules, tui, fuzzy search, terminal, scout">
+	
+	<!-- Open Graph / Social Media -->
+	<meta property="og:title" content="Ansible Scout - AI-Powered Module Discovery">
+	<meta property="og:description" content="Scout and discover Ansible modules instantly with fuzzy search and AI-powered semantic recommendations.">
+	<meta property="og:image" content="https://ascout.cuevaneander.tech/og-image.jpg">
+	<meta property="og:url" content="https://ascout.cuevaneander.tech">
+	<meta property="og:type" content="website">
+	<meta name="twitter:card" content="summary_large_image">
+	
+	<!-- Favicon -->
+	<link rel="icon" type="image/png" href="favicon.png">
+	<link rel="apple-touch-icon" href="favicon.png">
+	
+	<link rel="stylesheet" href="style.css">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500&family=Inter:wght@300;400;500;600;700&display=swap"
+		rel="stylesheet">
+	<script>
+		(function () {
+			var t = localStorage.getItem('theme');
+			if (t) document.documentElement.setAttribute('data-theme', t);
+			var l = localStorage.getItem('lang');
+			if (l) document.documentElement.lang = l;
+		})();
+	</script>
+</head>
+
+<body>
+
+	<!-- Navbar -->
+	<nav class="navbar" id="navbar">
+		<div class="container navbar-inner">
+<a href="#top" class="nav-logo">
+			<img src="favicon.png" alt="" class="nav-logo-icon" width="24" height="24">
+			<span>Ansible Scout</span>
+		</a>
+			<ul class="nav-links" id="navLinks">
+				<li><a href="#features" data-i18n="nav.features">Features</a></li>
+				<li><a href="#installation" data-i18n="nav.installation">Installation</a></li>
+				<li><a href="#usage" data-i18n="nav.usage">Usage</a></li>
+				<li><a href="#shortcuts" data-i18n="nav.shortcuts">Shortcuts</a></li>
+				<li><a href="#examples" data-i18n="nav.examples">Examples</a></li>
+			</ul>
+			<div class="nav-controls">
+				<button class="control-btn lang-btn" id="langToggle" aria-label="Switch language">ES</button>
+				<button class="control-btn theme-btn" id="themeToggle" aria-label="Toggle theme">🌓</button>
+				<button class="hamburger" id="menuToggle" aria-label="Toggle menu">
+					<span></span><span></span><span></span>
+				</button>
+			</div>
+		</div>
+	</nav>
+
+	<!-- Hero -->
+	<header class="hero" id="top">
+		<div class="container hero-inner">
+			<div class="hero-content">
+				<div class="hero-badge" data-i18n="hero.badge">Terminal TUI Tool</div>
+				<div class="logo">
+					<img src="favicon.png" alt="Ansible Scout" class="logo-icon" width="48" height="48">
+					<h1>Ansible Scout</h1>
+				</div>
+				<p class="tagline" data-i18n="hero.tagline">Scout and discover Ansible modules instantly with fuzzy
+					search recommendations</p>
+				<div class="hero-actions">
+					<a href="#installation" class="btn btn-primary" data-i18n="hero.cta_primary">Get Started</a>
+					<a href="#features" class="btn btn-secondary" data-i18n="hero.cta_secondary">See Features</a>
+				</div>
+				<div class="hero-stats">
+					<div class="stat">
+						<span class="stat-num">6+</span>
+						<span class="stat-label" data-i18n="hero.stat_features">Features</span>
+					</div>
+					<div class="stat-divider"></div>
+					<div class="stat">
+						<span class="stat-num">10+</span>
+						<span class="stat-label" data-i18n="hero.stat_shortcuts">Shortcuts</span>
+					</div>
+					<div class="stat-divider"></div>
+					<div class="stat">
+						<span class="stat-num">2</span>
+						<span class="stat-label" data-i18n="hero.stat_themes">Themes</span>
+					</div>
+					<div class="stat-divider"></div>
+					<div class="stat">
+						<span class="stat-num">AI</span>
+						<span class="stat-label" data-i18n="hero.stat_ai">Semantic Search</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<main class="main">
+		<div class="container">
+
+			<!-- Features -->
+			<section id="features" class="section">
+				<h2 data-i18n="features.title">Features</h2>
+				<div class="features-grid">
+					<div class="feature-card">
+						<div class="feature-icon">🔍</div>
+						<h3 data-i18n="feature.fuzzy_search.title">Real-time Fuzzy Search</h3>
+						<p data-i18n="feature.fuzzy_search.desc">Find Ansible modules instantly as you type with
+							intelligent fuzzy search algorithms</p>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon">⌨️</div>
+						<h3 data-i18n="feature.vim_nav.title">Vim-style Navigation</h3>
+						<p data-i18n="feature.vim_nav.desc">Navigate seamlessly with familiar Vim keybindings for
+							maximum efficiency</p>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon">🖥️</div>
+						<h3 data-i18n="feature.split_panel.title">Split-panel Interface</h3>
+						<p data-i18n="feature.split_panel.desc">View search results and module details side-by-side for
+							better workflow</p>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon">📋</div>
+						<h3 data-i18n="feature.module_details.title">Module Details</h3>
+						<p data-i18n="feature.module_details.desc">Access comprehensive information including parameters
+							and usage examples</p>
+					</div>
+					<div class="feature-card">
+						<div class="feature-icon">⚡</div>
+						<h3 data-i18n="feature.quick_selection.title">Quick Selection</h3>
+						<p data-i18n="feature.quick_selection.desc">Jump directly to results using number keys (1-9) for
+							lightning-fast access</p>
+					</div>
+				<div class="feature-card">
+					<div class="feature-icon">🎨</div>
+					<h3 data-i18n="feature.themes.title">Multiple Themes</h3>
+					<p data-i18n="feature.themes.desc">Choose from multiple color themes including Original and
+						Dracula</p>
+				</div>
+				<div class="feature-card feature-highlight">
+					<div class="feature-icon">🤖</div>
+					<h3 data-i18n="feature.ai_search.title">AI Semantic Search</h3>
+					<p data-i18n="feature.ai_search.desc">Press Ctrl+I for intelligent semantic search using OpenAI embeddings. 
+						Finds modules by meaning, not just text. Understands synonyms and context.</p>
+				</div>
+			</div>
+			</section>
+
+			<!-- Installation -->
+			<section id="installation" class="section">
+				<h2 data-i18n="installation.title">Installation</h2>
+				<h3 data-i18n="installation.curl">Using curl</h3>
+				<div class="code-block">
+					<pre><code>curl -fsSL https://raw.githubusercontent.com/4DRIAN0RTIZ/AnsibleScout/main/install.sh | bash</code></pre>
+				</div>
+				<h3 data-i18n="installation.wget">Or using wget</h3>
+				<div class="code-block">
+					<pre><code>wget -qO- https://raw.githubusercontent.com/4DRIAN0RTIZ/AnsibleScout/main/install.sh | bash</code></pre>
+				</div>
+				
+				<h3 data-i18n="installation.config">Configuration (Optional)</h3>
+				<p data-i18n="installation.config_desc">Create <code>~/.config/ascout/config.toml</code> for AI features:</p>
+				<div class="code-block">
+					<pre><code>[ui]
+theme = "dracula"
+
+[ai]
+enabled = true
+model = "gpt-4o-mini"
+api_key = "sk-your-openai-key"
+
+[ansible]
+modules_file = "/tmp/ansible_modules.json"</code></pre>
+				</div>
+			</section>
+
+			<!-- Usage -->
+			<section id="usage" class="section">
+				<h2 data-i18n="usage.title">Usage</h2>
+				<h3 data-i18n="usage.basic_mode">Basic Mode</h3>
+				<div class="code-block">
+					<pre><code>ascout</code></pre>
+				</div>
+				<h3 data-i18n="usage.custom_theme">With Custom Theme</h3>
+				<div class="code-block">
+					<pre><code>ascout --theme dracula</code></pre>
+				</div>
+				<h3 data-i18n="usage.custom_modules">Custom Modules File Location</h3>
+				<div class="code-block">
+					<pre><code>ascout --modules-file /path/to/modules.json</code></pre>
+				</div>
+			</section>
+
+			<!-- Shortcuts -->
+			<section id="shortcuts" class="section">
+				<h2 data-i18n="shortcuts.title">Keyboard Shortcuts</h2>
+				<div class="shortcuts-grid">
+					<div class="shortcuts-category">
+						<h3 data-i18n="shortcuts.navigation">Navigation (Vim-style)</h3>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">j</kbd><span class="or">or</span><kbd
+									class="key">↓</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.move_down">Move down in results / scroll
+								down in details</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">k</kbd><span class="or">or</span><kbd
+									class="key">↑</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.move_up">Move up in results / scroll up in
+								details</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">g</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.jump_first">Jump to first result or top of
+								details</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">G</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.jump_last">Jump to last result or bottom of
+								details</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Ctrl</kbd><span class="or">+</span><kbd
+									class="key">d</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.scroll_down">Scroll details down one
+								page</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Ctrl</kbd><span class="or">+</span><kbd
+									class="key">u</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.scroll_up">Scroll details up one page</span>
+						</div>
+					</div>
+					<div class="shortcuts-category">
+						<h3 data-i18n="shortcuts.search">Search</h3>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">/</kbd><span class="or">or</span><kbd
+									class="key">i</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.focus_search">Focus search input</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Esc</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.clear_search">Clear search</span>
+						</div>
+					</div>
+					<div class="shortcuts-category">
+						<h3 data-i18n="shortcuts.ai">AI Features</h3>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Ctrl</kbd><span class="or">+</span><kbd
+									class="key">I</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.ai_search">Semantic AI search with embeddings (Ctrl+I)</span>
+						</div>
+					</div>
+					<div class="shortcuts-category">
+						<h3 data-i18n="shortcuts.selection">Selection</h3>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">1-9</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.jump_number">Jump directly to result by
+								number</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Enter</kbd><span class="or">or</span><kbd
+									class="key">d</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.show_details">Show module details</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Tab</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.cycle_focus">Cycle focus between search,
+								results, and details</span>
+						</div>
+					</div>
+					<div class="shortcuts-category">
+						<h3 data-i18n="shortcuts.general">General</h3>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">?</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.show_help">Show help screen</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">q</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.quit">Quit application</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Ctrl</kbd><span class="or">+</span><kbd
+									class="key">c</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.quit">Quit application</span>
+						</div>
+						<div class="shortcut-item">
+							<div class="shortcut-keys"><kbd class="key">Ctrl</kbd><span class="or">+</span><kbd
+									class="key">p</kbd></div>
+							<span class="shortcut-desc" data-i18n="shortcut.switch_theme">Switch theme</span>
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- Examples -->
+			<section id="examples" class="section">
+				<h2 data-i18n="examples.title">Examples</h2>
+				
+				<h3 data-i18n="examples.ai_search.title">AI Semantic Search</h3>
+				<ol class="example-steps">
+					<li data-i18n="examples.ai_search.step1">Type "backup database" in the search box</li>
+					<li data-i18n-html="examples.ai_search.step2">Press <kbd class="key">Ctrl</kbd> + <kbd class="key">I</kbd> to activate AI semantic search</li>
+					<li data-i18n="examples.ai_search.step3">AI finds semantically related modules: mysql_db, postgresql_db, archive</li>
+					<li data-i18n="examples.ai_search.step4">View AI recommendations and select the best module for your use case</li>
+				</ol>
+				
+				<h3 data-i18n="examples.copy_files.title">Search for file copying modules</h3>
+				<ol class="example-steps">
+					<li data-i18n="examples.copy_files.step1">Type "copy files" in the search box</li>
+					<li data-i18n-html="examples.copy_files.step2">Press <kbd class="key">1</kbd> to jump to the first
+						result</li>
+					<li data-i18n-html="examples.copy_files.step3">Use <kbd class="key">j</kbd> / <kbd
+							class="key">k</kbd> to browse other results</li>
+					<li data-i18n-html="examples.copy_files.step4">Press <kbd class="key">Enter</kbd> or <kbd
+							class="key">d</kbd> to view details</li>
+				</ol>
+				
+				<h3 data-i18n="examples.quick_nav.title">Quick navigation</h3>
+				<ol class="example-steps">
+					<li data-i18n="examples.quick_nav.step1">Type your search query</li>
+					<li data-i18n-html="examples.quick_nav.step2">Press <kbd class="key">g</kbd> to jump to top result
+					</li>
+					<li data-i18n-html="examples.quick_nav.step3">Press <kbd class="key">G</kbd> to jump to bottom
+						result</li>
+					<li data-i18n-html="examples.quick_nav.step4">Press <kbd class="key">3</kbd> to jump directly to
+						third result</li>
+				</ol>
+			</section>
+
+			<!-- CTA -->
+			<section class="cta">
+				<h2 data-i18n="cta.title">Ready to Scout Ansible Modules?</h2>
+				<p data-i18n="cta.desc">Install Ansible Scout and discover modules faster than ever before</p>
+				<a href="#installation" class="cta-button" data-i18n="cta.button">Get Started</a>
+			</section>
+
+		</div>
+	</main>
+
+	<footer class="footer">
+		<div class="container footer-inner">
+			<div class="footer-logo">⚡ Ansible Scout</div>
+			<nav class="footer-nav">
+				<a href="#features" data-i18n="nav.features">Features</a>
+				<a href="#installation" data-i18n="nav.installation">Installation</a>
+				<a href="#usage" data-i18n="nav.usage">Usage</a>
+				<a href="#shortcuts" data-i18n="nav.shortcuts">Shortcuts</a>
+				<a href="https://github.com/4drian0rtiz/AnsibleScout" target="_blank" rel="noopener">GitHub</a>
+			</nav>
+			<p class="footer-copy" data-i18n="footer.copy">© 2026 Ansible Scout. Open source project for the Ansible
+				community.</p>
+		</div>
+	</footer>
+
+	<script src="script.js"></script>
+</body>
+
+</html>
